@@ -1,0 +1,1138 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: CanteenFlow AI API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: users
+    description: User management
+  - name: menu
+    description: Menu management
+  - name: orders
+    description: Order management
+  - name: seats
+    description: Seat reservation
+  - name: payments
+    description: Payment processing
+  - name: ai
+    description: AI agents
+  - name: dashboard
+    description: Dashboard stats
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  # ─── USERS ───────────────────────────────────────────────────────────────────
+  /users/me:
+    get:
+      operationId: getMe
+      tags: [users]
+      summary: Get current user profile
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateMe
+      tags: [users]
+      summary: Update current user profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserUpdate"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ─── MENU ────────────────────────────────────────────────────────────────────
+  /menu/categories:
+    get:
+      operationId: listMenuCategories
+      tags: [menu]
+      summary: List all menu categories
+      responses:
+        "200":
+          description: Categories list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+
+  /menu:
+    get:
+      operationId: listMenuItems
+      tags: [menu]
+      summary: List menu items
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: available
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Menu items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MenuItem"
+    post:
+      operationId: createMenuItem
+      tags: [menu]
+      summary: Create a menu item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MenuItemInput"
+      responses:
+        "201":
+          description: Created menu item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MenuItem"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /menu/{id}:
+    get:
+      operationId: getMenuItem
+      tags: [menu]
+      summary: Get a menu item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Menu item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MenuItem"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateMenuItem
+      tags: [menu]
+      summary: Update a menu item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MenuItemUpdate"
+      responses:
+        "200":
+          description: Updated menu item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MenuItem"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteMenuItem
+      tags: [menu]
+      summary: Delete a menu item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ─── ORDERS ──────────────────────────────────────────────────────────────────
+  /orders:
+    get:
+      operationId: listOrders
+      tags: [orders]
+      summary: List orders for current user (or all for canteen)
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Orders list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Order"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createOrder
+      tags: [orders]
+      summary: Place a new order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderInput"
+      responses:
+        "201":
+          description: Order created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /orders/active:
+    get:
+      operationId: listActiveOrders
+      tags: [orders]
+      summary: Live active orders for canteen kitchen dashboard
+      responses:
+        "200":
+          description: Active orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Order"
+
+  /orders/summary:
+    get:
+      operationId: getOrderSummary
+      tags: [orders]
+      summary: Order statistics summary for dashboard
+      responses:
+        "200":
+          description: Order summary stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderSummary"
+
+  /orders/{id}:
+    get:
+      operationId: getOrder
+      tags: [orders]
+      summary: Get order by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /orders/{id}/status:
+    patch:
+      operationId: updateOrderStatus
+      tags: [orders]
+      summary: Update order status (canteen only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderStatusUpdate"
+      responses:
+        "200":
+          description: Updated order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ─── SEATS ───────────────────────────────────────────────────────────────────
+  /seats:
+    get:
+      operationId: listSeats
+      tags: [seats]
+      summary: List all seats with current status
+      responses:
+        "200":
+          description: All seats
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Seat"
+
+  /seats/reserve:
+    post:
+      operationId: reserveSeats
+      tags: [seats]
+      summary: AI-powered seat reservation for a group
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReserveSeatsInput"
+      responses:
+        "201":
+          description: Reservation created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reservation"
+        "400":
+          description: Not enough seats available
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /seats/my-reservation:
+    get:
+      operationId: getMyReservation
+      tags: [seats]
+      summary: Get current user's active reservation
+      responses:
+        "200":
+          description: Active reservation or null
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReservationOrNull"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: cancelMyReservation
+      tags: [seats]
+      summary: Cancel current user's reservation
+      responses:
+        "204":
+          description: Cancelled
+
+  /seats/occupancy:
+    get:
+      operationId: getSeatOccupancy
+      tags: [seats]
+      summary: Live seat occupancy stats and heatmap data
+      responses:
+        "200":
+          description: Occupancy stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OccupancyStats"
+
+  # ─── PAYMENTS ────────────────────────────────────────────────────────────────
+  /payments/create-order:
+    post:
+      operationId: createPaymentOrder
+      tags: [payments]
+      summary: Create a mock payment order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentOrderInput"
+      responses:
+        "201":
+          description: Payment order created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentOrder"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /payments/verify:
+    post:
+      operationId: verifyPayment
+      tags: [payments]
+      summary: Verify payment signature
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentVerifyInput"
+      responses:
+        "200":
+          description: Payment verified
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentVerifyResult"
+        "400":
+          description: Invalid signature
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ─── AI AGENTS ───────────────────────────────────────────────────────────────
+  /ai/recommendations:
+    get:
+      operationId: getAiRecommendations
+      tags: [ai]
+      summary: Get AI food recommendations
+      responses:
+        "200":
+          description: AI recommendations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiRecommendations"
+
+  /ai/crowd-prediction:
+    get:
+      operationId: getCrowdPrediction
+      tags: [ai]
+      summary: Get AI crowd prediction for next 2 hours
+      responses:
+        "200":
+          description: Crowd prediction
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CrowdPrediction"
+
+  /ai/best-time:
+    get:
+      operationId: getBestOrderTime
+      tags: [ai]
+      summary: Get AI recommendation for best time to order
+      responses:
+        "200":
+          description: Best ordering time suggestion
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BestOrderTime"
+
+  # ─── DASHBOARD ───────────────────────────────────────────────────────────────
+  /dashboard/canteen:
+    get:
+      operationId: getCanteenDashboard
+      tags: [dashboard]
+      summary: Canteen dashboard summary stats
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CanteenDashboard"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+        clerkId:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [student, canteen]
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - clerkId
+        - name
+        - email
+        - role
+        - createdAt
+
+    UserUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        role:
+          type: string
+          enum: [student, canteen]
+
+    MenuItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+        category:
+          type: string
+        imageUrl:
+          type: ["string", "null"]
+        prepTimeMinutes:
+          type: integer
+        isAvailable:
+          type: boolean
+        isVeg:
+          type: boolean
+        calories:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - description
+        - price
+        - category
+        - imageUrl
+        - prepTimeMinutes
+        - isAvailable
+        - isVeg
+        - calories
+        - createdAt
+
+    MenuItemInput:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+        category:
+          type: string
+        imageUrl:
+          type: ["string", "null"]
+        prepTimeMinutes:
+          type: integer
+        isAvailable:
+          type: boolean
+        isVeg:
+          type: boolean
+        calories:
+          type: ["integer", "null"]
+      required:
+        - name
+        - description
+        - price
+        - category
+        - prepTimeMinutes
+        - isAvailable
+        - isVeg
+
+    MenuItemUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+        category:
+          type: string
+        imageUrl:
+          type: ["string", "null"]
+        prepTimeMinutes:
+          type: integer
+        isAvailable:
+          type: boolean
+        isVeg:
+          type: boolean
+        calories:
+          type: ["integer", "null"]
+
+    OrderItem:
+      type: object
+      properties:
+        menuItemId:
+          type: integer
+        menuItemName:
+          type: string
+        quantity:
+          type: integer
+        price:
+          type: number
+      required:
+        - menuItemId
+        - menuItemName
+        - quantity
+        - price
+
+    Order:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        userName:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderItem"
+        totalAmount:
+          type: number
+        status:
+          type: string
+          enum: [confirmed, cooking, packaging, ready, collected, cancelled]
+        type:
+          type: string
+          enum: [dine_in, parcel]
+        groupSize:
+          type: ["integer", "null"]
+        tableNumber:
+          type: ["string", "null"]
+        paymentMethod:
+          type: string
+          enum: [upi, card, cod, razorpay]
+        paymentStatus:
+          type: string
+          enum: [pending, paid, failed]
+        estimatedReadyAt:
+          type: ["string", "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userId
+        - userName
+        - items
+        - totalAmount
+        - status
+        - type
+        - groupSize
+        - tableNumber
+        - paymentMethod
+        - paymentStatus
+        - estimatedReadyAt
+        - createdAt
+        - updatedAt
+
+    OrderInput:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              menuItemId:
+                type: integer
+              quantity:
+                type: integer
+            required:
+              - menuItemId
+              - quantity
+        type:
+          type: string
+          enum: [dine_in, parcel]
+        groupSize:
+          type: ["integer", "null"]
+        paymentMethod:
+          type: string
+          enum: [upi, card, cod, razorpay]
+      required:
+        - items
+        - type
+        - paymentMethod
+
+    OrderStatusUpdate:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [confirmed, cooking, packaging, ready, collected, cancelled]
+      required:
+        - status
+
+    OrderSummary:
+      type: object
+      properties:
+        totalToday:
+          type: integer
+        activeNow:
+          type: integer
+        avgPrepTime:
+          type: number
+        revenue:
+          type: number
+        byStatus:
+          type: object
+          properties:
+            confirmed:
+              type: integer
+            cooking:
+              type: integer
+            packaging:
+              type: integer
+            ready:
+              type: integer
+            collected:
+              type: integer
+          required:
+            - confirmed
+            - cooking
+            - packaging
+            - ready
+            - collected
+      required:
+        - totalToday
+        - activeNow
+        - avgPrepTime
+        - revenue
+        - byStatus
+
+    Seat:
+      type: object
+      properties:
+        id:
+          type: integer
+        seatNumber:
+          type: string
+        tableNumber:
+          type: string
+        zone:
+          type: string
+        row:
+          type: integer
+        col:
+          type: integer
+        status:
+          type: string
+          enum: [available, occupied, reserved]
+        reservationId:
+          type: ["integer", "null"]
+        reservedUntil:
+          type: ["string", "null"]
+          format: date-time
+      required:
+        - id
+        - seatNumber
+        - tableNumber
+        - zone
+        - row
+        - col
+        - status
+        - reservationId
+        - reservedUntil
+
+    Reservation:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        seatIds:
+          type: array
+          items:
+            type: integer
+        tableNumber:
+          type: string
+        seatNumbers:
+          type: array
+          items:
+            type: string
+        groupSize:
+          type: integer
+        expiresAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userId
+        - seatIds
+        - tableNumber
+        - seatNumbers
+        - groupSize
+        - expiresAt
+        - createdAt
+
+    ReservationOrNull:
+      oneOf:
+        - $ref: "#/components/schemas/Reservation"
+        - type: "null"
+
+    ReserveSeatsInput:
+      type: object
+      properties:
+        groupSize:
+          type: integer
+        preferredZone:
+          type: string
+      required:
+        - groupSize
+
+    OccupancyStats:
+      type: object
+      properties:
+        totalSeats:
+          type: integer
+        available:
+          type: integer
+        occupied:
+          type: integer
+        reserved:
+          type: integer
+        occupancyPercent:
+          type: number
+        zones:
+          type: array
+          items:
+            type: object
+            properties:
+              zone:
+                type: string
+              available:
+                type: integer
+              occupied:
+                type: integer
+              reserved:
+                type: integer
+            required:
+              - zone
+              - available
+              - occupied
+              - reserved
+      required:
+        - totalSeats
+        - available
+        - occupied
+        - reserved
+        - occupancyPercent
+        - zones
+
+    PaymentOrderInput:
+      type: object
+      properties:
+        amount:
+          type: number
+        currency:
+          type: string
+        orderId:
+          type: ["integer", "null"]
+      required:
+        - amount
+        - currency
+
+    PaymentOrder:
+      type: object
+      properties:
+        razorpayOrderId:
+          type: string
+        amount:
+          type: number
+        currency:
+          type: string
+        keyId:
+          type: string
+      required:
+        - razorpayOrderId
+        - amount
+        - currency
+        - keyId
+
+    PaymentVerifyInput:
+      type: object
+      properties:
+        razorpayOrderId:
+          type: string
+        razorpayPaymentId:
+          type: string
+        razorpaySignature:
+          type: string
+        orderId:
+          type: ["integer", "null"]
+      required:
+        - razorpayOrderId
+        - razorpayPaymentId
+        - razorpaySignature
+
+    PaymentVerifyResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+      required:
+        - success
+        - message
+
+    AiRecommendations:
+      type: object
+      properties:
+        message:
+          type: string
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              menuItemId:
+                type: integer
+              name:
+                type: string
+              reason:
+                type: string
+              prepTimeMinutes:
+                type: integer
+              price:
+                type: number
+            required:
+              - menuItemId
+              - name
+              - reason
+              - prepTimeMinutes
+              - price
+      required:
+        - message
+        - items
+
+    CrowdPrediction:
+      type: object
+      properties:
+        currentLevel:
+          type: string
+          enum: [low, medium, high, very_high]
+        predictions:
+          type: array
+          items:
+            type: object
+            properties:
+              hour:
+                type: integer
+              minute:
+                type: integer
+              level:
+                type: string
+                enum: [low, medium, high, very_high]
+              occupancyPercent:
+                type: number
+            required:
+              - hour
+              - minute
+              - level
+              - occupancyPercent
+        recommendation:
+          type: string
+      required:
+        - currentLevel
+        - predictions
+        - recommendation
+
+    BestOrderTime:
+      type: object
+      properties:
+        currentWaitMinutes:
+          type: integer
+        bestTimeMinutes:
+          type: integer
+        suggestion:
+          type: string
+        breakTimeOptimized:
+          type: boolean
+      required:
+        - currentWaitMinutes
+        - bestTimeMinutes
+        - suggestion
+        - breakTimeOptimized
+
+    CanteenDashboard:
+      type: object
+      properties:
+        ordersToday:
+          type: integer
+        revenueToday:
+          type: number
+        activeOrders:
+          type: integer
+        occupiedSeats:
+          type: integer
+        totalSeats:
+          type: integer
+        avgPrepTime:
+          type: number
+        topItems:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              count:
+                type: integer
+            required:
+              - name
+              - count
+        recentOrders:
+          type: array
+          items:
+            $ref: "#/components/schemas/Order"
+      required:
+        - ordersToday
+        - revenueToday
+        - activeOrders
+        - occupiedSeats
+        - totalSeats
+        - avgPrepTime
+        - topItems
+        - recentOrders
