@@ -2,8 +2,14 @@ import { useEffect, useRef } from "react";
 import { useAuth } from "@clerk/react";
 import { useToast } from "@/hooks/use-toast";
 import { useCurrentUser } from "./useCurrentUser";
+import { useQueryClient } from "@tanstack/react-query";
+import { getGetCanteenDashboardQueryKey, getListActiveOrdersQueryKey, getListOrdersQueryKey } from "@workspace/api-client-react";
 
 const STATUS_MESSAGES: Record<string, { title: string; description: string }> = {
+  confirmed: {
+    title: "Order confirmed",
+    description: "Your order has been received and is now in the queue.",
+  },
   cooking: {
     title: "Chef is cooking your order!",
     description: "Your meal is being freshly prepared.",
@@ -26,6 +32,7 @@ export function useOrderNotifications() {
   const { isSignedIn, getToken } = useAuth();
   const { appUser, isGuest } = useCurrentUser();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const esRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
@@ -46,14 +53,31 @@ export function useOrderNotifications() {
         try {
           const data = JSON.parse(event.data);
 
-          // Existing order status updates
-          if (data.type === "order_update" && appUser && data.userId === appUser.id) {
-            const msg = STATUS_MESSAGES[data.status];
-            if (msg) {
-              toast({
-                title: msg.title,
-                description: `Order #${data.orderId} — ${msg.description}`,
-              });
+          // Order status updates
+          if (data.type === "order_update" && appUser) {
+            const isOwnOrder = data.userId === appUser.id;
+            const isCanteen = appUser.role === "canteen";
+
+            if (isCanteen) {
+              // For canteen staff
+              if (data.status === "confirmed") {
+                toast({
+                  title: "New order received!",
+                  description: `Order #${data.orderId} from ${data.userName}`,
+                });
+              } else {
+                toast({
+                  title: "Order status updated",
+                  description: `Order #${data.orderId} (${data.userName}) is now ${data.status}`,
+                });
+              }
+              queryClient.invalidateQueries({ queryKey: getGetCanteenDashboardQueryKey() });
+              queryClient.invalidateQueries({ queryKey: getListActiveOrdersQueryKey() });
+            }
+
+            if (isOwnOrder) {
+              // Refresh the student's order list when their own order changes
+              queryClient.invalidateQueries({ queryKey: getListOrdersQueryKey() });
             }
           }
 
@@ -90,5 +114,5 @@ export function useOrderNotifications() {
       esRef.current?.close();
       esRef.current = null;
     };
-  }, [isSignedIn, appUser?.id]);
+  }, [isSignedIn, appUser?.id, appUser?.role, isGuest, getToken]);
 }

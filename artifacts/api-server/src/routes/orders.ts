@@ -130,6 +130,13 @@ router.post("/orders", async (req, res): Promise<void> => {
     estimatedReadyAt,
   }).returning();
 
+  broadcastOrderUpdate({
+    orderId: order.id,
+    status: order.status,
+    userId: order.userId,
+    userName: order.userName,
+  });
+
   res.status(201).json(GetOrderResponse.parse(order));
 });
 

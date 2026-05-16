@@ -43,6 +43,85 @@ const LOGS: Record<AgentKey, string[]> = {
   break: ["Analyzing student break patterns...", "Checking class schedules...", "Finding optimal dining window...", "Break efficiency optimized to High"],
 };
 
+const MENU_ITEM_IMAGE_FALLBACKS: Record<string, string> = {
+  "Margherita Pizza": "https://www.vegrecipesofindia.com/wp-content/uploads/2019/10/margherita-pizza-recipe.jpg",
+  "Chicken Burger": "https://www.indianhealthyrecipes.com/wp-content/uploads/2019/05/chicken-burger-recipe.jpg",
+  "Veg Burger": "https://www.vegrecipesofindia.com/wp-content/uploads/2015/08/veg-burger.jpg",
+  "Cheese Burger": "https://www.cookwithmanali.com/wp-content/uploads/2021/04/Cheese-Burger.jpg",
+  "Classic Wada Pav": "https://www.vegrecipesofindia.com/wp-content/uploads/2017/11/wada-pav-recipe.jpg",
+  "Cheese Burst Wada Pav": "https://b.zmtcdn.com/data/dish_photos/4fb/30f30c6aeb85ee7be0359f1e1fb3a4fb.jpg",
+  "Caesar Salad": "https://www.cookwithmanali.com/wp-content/uploads/2018/09/caesar-salad-recipe.jpg",
+  "Greek Salad": "https://www.cookingclassy.com/wp-content/uploads/2019/05/greek-salad-4.jpg",
+  "French Fries": "https://www.whiskaffair.com/wp-content/uploads/2018/05/French-Fries-2-3.jpg",
+  "Masala Fries": "https://www.indianhealthyrecipes.com/wp-content/uploads/2014/12/masala-fries-recipe.jpg",
+  "Chocolate Milkshake": "https://www.vegrecipesofindia.com/wp-content/uploads/2019/03/chocolate-milkshake-recipe.jpg",
+  "Vanilla Milkshake": "https://www.vegrecipesofindia.com/wp-content/uploads/2014/06/vanilla-milkshake-recipe.jpg",
+};
+
+const MENU_KEYWORD_IMAGE_FALLBACKS: Array<[RegExp, string]> = [
+  [/\bclassic wada pav\b|\bwada pav\b|\bpav\b/i, "https://www.vegrecipesofindia.com/wp-content/uploads/2017/11/wada-pav-recipe.jpg"],
+  [/\bcheese burst\b/i, "https://b.zmtcdn.com/data/dish_photos/4fb/30f30c6aeb85ee7be0359f1e1fb3a4fb.jpg"],
+  [/\bveg(?:etarian)? burger\b/i, "https://www.vegrecipesofindia.com/wp-content/uploads/2015/08/veg-burger.jpg"],
+  [/\bchicken burger\b/i, "https://www.indianhealthyrecipes.com/wp-content/uploads/2019/05/chicken-burger-recipe.jpg"],
+  [/\bburger\b/i, "https://www.cookwithmanali.com/wp-content/uploads/2021/04/Cheese-Burger.jpg"],
+  [/\bpizza\b/i, "https://www.vegrecipesofindia.com/wp-content/uploads/2019/10/margherita-pizza-recipe.jpg"],
+  [/\bsalad\b/i, "https://www.cookwithmanali.com/wp-content/uploads/2018/09/caesar-salad-recipe.jpg"],
+  [/\bfries\b|\bfrench fries\b/i, "https://www.whiskaffair.com/wp-content/uploads/2018/05/French-Fries-2-3.jpg"],
+  [/\bmilkshake\b|\bshake\b/i, "https://www.vegrecipesofindia.com/wp-content/uploads/2019/03/chocolate-milkshake-recipe.jpg"],
+  [/\bdosa\b|\bidli\b|\butt?apam\b|\bvada\b/i, "https://www.vegrecipesofindia.com/wp-content/uploads/2017/11/wada-pav-recipe.jpg"],
+  [/\bbiryani\b|\brice\b/i, "https://www.vegrecipesofindia.com/wp-content/uploads/2020/06/veg-curry-1.jpg"],
+  [/\bwrap\b|\broll\b/i, "https://www.cookingclassy.com/wp-content/uploads/2015/11/chicken-kathi-roll-1.jpg"],
+  [/\bpasta\b/i, "https://www.cookingclassy.com/wp-content/uploads/2019/10/baked-pasta-4-1.jpg"],
+  [/\bsandwich\b/i, "https://www.vegrecipesofindia.com/wp-content/uploads/2017/08/veg-sandwich-recipe.jpg"],
+  [/\bjuice\b|\bmocktail\b|\bshake\b|\bcoffee\b|\btea\b/i, "https://www.vegrecipesofindia.com/wp-content/uploads/2014/06/vanilla-milkshake-recipe.jpg"],
+];
+
+const MENU_CATEGORY_IMAGE_FALLBACKS: Record<string, string> = {
+  Pizza: "https://www.vegrecipesofindia.com/wp-content/uploads/2019/10/margherita-pizza-recipe.jpg",
+  Burgers: "https://www.cookwithmanali.com/wp-content/uploads/2021/04/Cheese-Burger.jpg",
+  Salads: "https://www.cookwithmanali.com/wp-content/uploads/2018/09/caesar-salad-recipe.jpg",
+  Sides: "https://www.whiskaffair.com/wp-content/uploads/2018/05/French-Fries-2-3.jpg",
+  Beverages: "https://www.vegrecipesofindia.com/wp-content/uploads/2019/03/chocolate-milkshake-recipe.jpg",
+  Dosa: "https://www.vegrecipesofindia.com/wp-content/uploads/2017/11/wada-pav-recipe.jpg",
+  Snacks: "https://www.vegrecipesofindia.com/wp-content/uploads/2021/04/pav-bhaji-recipe-1.jpg",
+  "Vada Pav": "https://www.vegrecipesofindia.com/wp-content/uploads/2017/11/wada-pav-recipe.jpg",
+  Roll: "https://www.cookingclassy.com/wp-content/uploads/2015/11/chicken-kathi-roll-1.jpg",
+  Sandwich: "https://www.vegrecipesofindia.com/wp-content/uploads/2017/08/veg-sandwich-recipe.jpg",
+  "Milk Shakes": "https://www.vegrecipesofindia.com/wp-content/uploads/2019/03/chocolate-milkshake-recipe.jpg",
+  "Gobi Items": "https://www.vegrecipesofindia.com/wp-content/uploads/2013/12/gobi-manchurian-recipe-1.jpg",
+  "Babycorn Items": "https://www.vegrecipesofindia.com/wp-content/uploads/2020/06/baby-corn-manchurian-1.jpg",
+  "Mushroom Items": "https://www.vegrecipesofindia.com/wp-content/uploads/2020/06/mushroom-manchurian-1.jpg",
+  "Paneer Items": "https://www.vegrecipesofindia.com/wp-content/uploads/2020/06/paneer-manchurian-1.jpg",
+  "Curry Items": "https://www.vegrecipesofindia.com/wp-content/uploads/2020/06/veg-curry-1.jpg",
+  "Egg Items": "https://www.indianhealthyrecipes.com/wp-content/uploads/2021/10/masala-omelette-recipe.jpg",
+  "Tiffin Items": "https://www.vegrecipesofindia.com/wp-content/uploads/2021/06/idli-vada-combo.jpg",
+};
+
+const GENERIC_FOOD_IMAGE = "https://www.vegrecipesofindia.com/wp-content/uploads/2022/06/veg-thali-recipe.jpg";
+const GENERIC_IGNORED_IMAGE_URLS = new Set<string>([
+  ...Object.values(MENU_ITEM_IMAGE_FALLBACKS),
+  ...Object.values(MENU_CATEGORY_IMAGE_FALLBACKS),
+  GENERIC_FOOD_IMAGE,
+]);
+
+function getMenuItemImageFallback(item: any) {
+  const lowerName = String(item?.name ?? "").toLowerCase();
+  const exact = MENU_ITEM_IMAGE_FALLBACKS[item.name];
+  if (exact) return exact;
+
+  for (const [pattern, url] of MENU_KEYWORD_IMAGE_FALLBACKS) {
+    if (pattern.test(lowerName)) {
+      return url;
+    }
+  }
+
+  return MENU_CATEGORY_IMAGE_FALLBACKS[item.category] ?? GENERIC_FOOD_IMAGE;
+}
+
+function shouldUseItemImage(item: any) {
+  return Boolean(item?.imageUrl) && !GENERIC_IGNORED_IMAGE_URLS.has(item.imageUrl);
+}
+
 function StatusPill({ value }: { value: string }) {
   return <span className="px-2 py-1 rounded-full text-[10px] font-semibold tracking-wide bg-white/80 border border-border">{value}</span>;
 }
@@ -190,6 +269,10 @@ function CartDrawer({ onClose }: { onClose: () => void }) {
 
   async function placeOrderAfterPayment(method: PaymentMethod) {
     const total = cart.total();
+    if (cart.items.length === 0) {
+      alert("Your cart is empty.");
+      return;
+    }
     if (isGuest) {
       const pts = Math.floor(total / 10);
       addPoints(pts);
@@ -199,6 +282,11 @@ function CartDrawer({ onClose }: { onClose: () => void }) {
     }
     try {
       const token = await getToken();
+      if (!token) {
+        alert("Please sign in before placing an order.");
+        window.location.href = "/auth-gate";
+        return;
+      }
       await apiFetch("/orders", {
         method: "POST",
         body: JSON.stringify({ items: cart.items.map((i) => ({ menuItemId: i.menuItemId, quantity: i.quantity })), type: orderType, paymentMethod: method }),
@@ -208,8 +296,15 @@ function CartDrawer({ onClose }: { onClose: () => void }) {
       cart.clearCart();
       onClose();
       window.location.href = "/orders";
-    } catch {
-      alert("Failed to place order. Please try again.");
+    } catch (error) {
+      console.error("Place order failed:", error);
+      const message = error instanceof Error ? error.message : "Please try again.";
+      if (message.toLowerCase().includes("unauthorized")) {
+        alert("Please sign in before placing an order.");
+        window.location.href = "/auth-gate";
+        return;
+      }
+      alert(`Failed to place order. ${message}`);
     }
   }
 
@@ -240,10 +335,29 @@ function CartDrawer({ onClose }: { onClose: () => void }) {
 function MenuItemCard({ item, onAdd }: { item: any; onAdd: () => void }) {
   const cart = useCart();
   const inCart = cart.items.find((i) => i.menuItemId === item.id);
+  const [imageSrc, setImageSrc] = useState<string>(() =>
+    shouldUseItemImage(item) ? item.imageUrl : getMenuItemImageFallback(item)
+  );
   return (
     <motion.div layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="group card-hover bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
       <div className="relative h-44 bg-gradient-to-br from-orange-100 to-amber-50 overflow-hidden">
-        {item.imageUrl ? (<img src={item.imageUrl} alt={item.name} className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />) : (<div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-orange-100 to-amber-50"><span className="text-4xl opacity-30">{item.isVeg ? "V" : "NV"}</span></div>)}
+        {imageSrc ? (
+          <img
+            src={imageSrc}
+            alt={item.name}
+            className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+            onError={() => {
+              const fallback = getMenuItemImageFallback(item);
+              if (fallback && fallback !== imageSrc) {
+                setImageSrc(fallback);
+              } else {
+                setImageSrc("");
+              }
+            }}
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-orange-100 to-amber-50"><span className="text-4xl opacity-30">{item.isVeg ? "V" : "NV"}</span></div>
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
         <div className={`absolute top-2 left-2 w-4 h-4 rounded border-2 flex items-center justify-center bg-white/90 ${item.isVeg ? "border-green-600" : "border-red-600"}`}><div className={`w-2 h-2 rounded-full ${item.isVeg ? "bg-green-600" : "bg-red-600"}`} /></div>
         {!item.isAvailable && (<div className="absolute inset-0 bg-black/50 flex items-center justify-center"><Badge variant="secondary">Unavailable</Badge></div>)}
@@ -262,7 +376,7 @@ export default function MenuPage() {
   const { isSignedIn } = useAuth();
   const { isGuest } = useGuestMode();
 
-  const { data: categories = [] } = useListMenuCategories();
+  const categories = useListMenuCategories().data ?? [];
   const { data: items = [], isLoading } = useListMenuItems(selectedCategory ? { category: selectedCategory } : {});
   const { data: aiData } = useGetAiRecommendations({ query: { enabled: isSignedIn } } as any);
   const { data: crowdData } = useGetCrowdPrediction({ query: { enabled: true } } as any);

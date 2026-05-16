@@ -9,6 +9,7 @@
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "@workspace/db": "workspace:*",
     "tsx": "catalog:"
   }
 }
