@@ -3,6 +3,7 @@ import { getAuth } from "@clerk/express";
 import { eq, desc, and, inArray } from "drizzle-orm";
 import { db, ordersTable, menuItemsTable, usersTable } from "@workspace/db";
 import { broadcastOrderUpdate } from "../lib/sse";
+import { enqueueTask } from "../lib/orchestrator";
 import {
   ListOrdersResponse,
   CreateOrderBody,
@@ -136,6 +137,14 @@ router.post("/orders", async (req, res): Promise<void> => {
     userId: order.userId,
     userName: order.userName,
   });
+
+  // Enqueue processing task for orchestrator (kitchen, seat allocation, pickup)
+  try {
+    enqueueTask("process_order", { orderId: order.id });
+  } catch (err) {
+    // non-fatal
+    console.warn("Failed to enqueue orchestrator task", err);
+  }
 
   res.status(201).json(GetOrderResponse.parse(order));
 });

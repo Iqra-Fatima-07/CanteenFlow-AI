@@ -10,6 +10,8 @@ import {
 } from "./middlewares/clerkProxyMiddleware";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { broadcastToAll } from "./lib/sse";
+import { startOrchestrator } from "./lib/orchestrator";
 
 const app: Express = express();
 
@@ -49,5 +51,9 @@ app.use(
 );
 
 app.use("/api", router);
+
+// Start the real orchestrator which runs workers and streams agent events.
+// This is modular and in-process; it will emit real task progress and update DB states.
+startOrchestrator();
 
 export default app;
