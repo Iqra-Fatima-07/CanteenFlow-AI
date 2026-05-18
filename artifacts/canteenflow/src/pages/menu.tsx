@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@clerk/react";
 import { useListMenuItems, useListMenuCategories, useGetAiRecommendations, useGetCrowdPrediction } from "@workspace/api-client-react";
@@ -167,7 +167,7 @@ function OperationsStats() {
   return <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-4">{stats.map((s) => <div key={s.label} className="rounded-2xl border border-border bg-white/80 backdrop-blur-xl p-3"><div className="text-xs text-muted-foreground">{s.label}</div><div className="mt-1 flex items-end justify-between"><span className="font-black text-lg">{s.value}</span><span className="text-xs text-emerald-600 font-semibold">{s.delta}</span></div></div>)}</div>;
 }
 
-function AIOperationsCenterModal({ open, onClose, onOpenAgent }: { open: boolean; onClose: () => void; onOpenAgent: (agent: AgentKey) => void }) {
+function AIOperationsCenterModal({ open, onClose, onOpenAgent, agents }: { open: boolean; onClose: () => void; onOpenAgent: (agent: AgentKey) => void; agents: AgentState[] }) {
   return <AnimatePresence>{open && (<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 bg-black/55 backdrop-blur-md">
     <div className="absolute inset-0" onClick={onClose} />
     <motion.div initial={{ opacity: 0, scale: 0.96, y: 18 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 18 }} transition={{ type: "spring", damping: 24, stiffness: 250 }} className="absolute inset-4 lg:inset-8 rounded-[28px] overflow-hidden border border-white/50 bg-white/85 shadow-2xl">
@@ -203,13 +203,13 @@ function AIOperationsCenterModal({ open, onClose, onOpenAgent }: { open: boolean
                   </div>
                 </div>
               </div>
-              {AGENTS.map((agent) => <button key={agent.key} onClick={() => onOpenAgent(agent.key)} className="text-left"><AgentPreview agent={agent} /></button>)}
+              {agents.map((agent) => <button key={agent.key} onClick={() => onOpenAgent(agent.key)} className="text-left"><AgentPreview agent={agent} /></button>)}
             </div>
             <div className="relative mt-4"><OperationsStats /></div>
           </div>
           <div className="rounded-[26px] border border-border bg-white/75 backdrop-blur-xl p-5 flex flex-col gap-3">
             <div className="flex items-center justify-between"><div className="text-sm font-bold">Fleet Status</div><div className="text-xs text-emerald-600 font-semibold">LIVE</div></div>
-            {AGENTS.map((agent) => <button key={agent.key} onClick={() => onOpenAgent(agent.key)} className="rounded-2xl border border-border bg-white p-4 text-left shadow-sm hover:shadow-md transition-shadow"><div className="flex items-center gap-3"><div className={`w-9 h-9 rounded-2xl flex items-center justify-center bg-white border border-border ${agent.color}`}>{agent.icon}</div><div className="flex-1 min-w-0"><div className="flex items-center justify-between gap-3"><div className="font-semibold truncate">{agent.title}</div><StatusPill value={agent.status} /></div><div className="text-xs text-muted-foreground mt-1 truncate">{agent.subtitle}</div></div></div></button>)}
+            {agents.map((agent) => <button key={agent.key} onClick={() => onOpenAgent(agent.key)} className="rounded-2xl border border-border bg-white p-4 text-left shadow-sm hover:shadow-md transition-shadow"><div className="flex items-center gap-3"><div className={`w-9 h-9 rounded-2xl flex items-center justify-center bg-white border border-border ${agent.color}`}>{agent.icon}</div><div className="flex-1 min-w-0"><div className="flex items-center justify-between gap-3"><div className="font-semibold truncate">{agent.title}</div><StatusPill value={agent.status} /></div><div className="text-xs text-muted-foreground mt-1 truncate">{agent.subtitle}</div></div></div></button>)}
           </div>
         </div>
       </div>
@@ -217,7 +217,7 @@ function AIOperationsCenterModal({ open, onClose, onOpenAgent }: { open: boolean
   </motion.div>)}</AnimatePresence>;
 }
 
-function AgentDetailPanel({ agent, onBack }: { agent: AgentKey; onBack: () => void }) {
+function AgentDetailPanel({ agent, onBack, logs = LOGS }: { agent: AgentKey; onBack: () => void; logs?: Record<AgentKey, string[]> }) {
   const details = {
     crowd: { title: "Crowd Prediction Agent", status: "ACTIVE", accent: "emerald", summary: "Rush expected in 12 mins", body: "Occupancy graphs, rush heatmaps, node connections, and predictive demand signals." },
     seat: { title: "Seat Allocation Agent", status: "OPTIMIZING", accent: "blue", summary: "Table B2 allocated", body: "Live seat map, allocation visualization, and collision-free seating logic." },
@@ -225,15 +225,60 @@ function AgentDetailPanel({ agent, onBack }: { agent: AgentKey; onBack: () => vo
     pickup: { title: "Pickup Coordination Agent", status: "PREDICTING", accent: "violet", summary: "Best pickup time: 3 mins", body: "Pickup timing prediction, counter load modeling, and collection ETA." },
     break: { title: "Break-Time Optimization Agent", status: "ANALYZING", accent: "pink", summary: "Efficiency: High", body: "Timing recommendations, break-window analysis, and schedule-aware dining guidance." },
   }[agent];
-  return <motion.div layout className="fixed inset-0 z-[60] bg-black/55 backdrop-blur-md p-4 lg:p-8"><motion.div initial={{ opacity: 0, y: 24, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 24, scale: 0.96 }} transition={{ type: "spring", damping: 26, stiffness: 250 }} className="h-full rounded-[30px] border border-white/50 bg-white/90 shadow-2xl overflow-hidden"><div className="h-full p-5 lg:p-6 flex flex-col gap-5"><div className="flex items-center justify-between"><Button variant="outline" onClick={onBack}><ArrowLeft className="w-4 h-4" />Back to Operations Center</Button><StatusPill value={details.status} /></div><div className="grid lg:grid-cols-[1.2fr_0.8fr] gap-5 flex-1 min-h-0"><div className="rounded-[26px] border border-border bg-gradient-to-br from-white to-slate-50 p-5 overflow-hidden relative"><div className="absolute inset-0 opacity-50" style={{ backgroundImage: "radial-gradient(circle at 20% 20%, rgba(59,130,246,0.12), transparent 18%), radial-gradient(circle at 70% 30%, rgba(168,85,247,0.12), transparent 18%), radial-gradient(circle at 50% 70%, rgba(34,197,94,0.12), transparent 18%)" }} /><div className="relative"><div className="flex items-center gap-3"><div className="w-12 h-12 rounded-2xl bg-white border border-border flex items-center justify-center"><AgentGlyph keyName={agent} /></div><div><div className="text-xs uppercase tracking-[0.3em] text-muted-foreground">{details.status}</div><h3 className="text-2xl font-black">{details.title}</h3><p className="text-sm text-muted-foreground">{details.summary}</p></div></div><div className="mt-5 grid gap-3"><div className="rounded-2xl border border-border bg-white/80 p-4"><div className="text-sm font-semibold mb-2">Live Logs</div><div className="font-mono text-xs space-y-2 text-emerald-700">{LOGS[agent].map((line, i) => <div key={line} className="flex gap-2"><span className="text-muted-foreground">{String(2120 + i).slice(1)}</span><span>{line}</span></div>)}</div></div><div className="grid md:grid-cols-2 gap-3"><div className="rounded-2xl border border-border bg-white/80 p-4"><div className="text-sm font-semibold mb-1">AI Reasoning</div><div className="text-sm text-muted-foreground">{details.body}</div></div><div className="rounded-2xl border border-border bg-white/80 p-4"><div className="text-sm font-semibold mb-1">Confidence</div><div className="text-3xl font-black text-violet-600">9{agent === "kitchen" ? 1 : agent === "pickup" ? 2 : agent === "crowd" ? 89 : agent === "seat" ? 94 : 87}%</div></div></div></div></div></div><div className="rounded-[26px] border border-border bg-white/80 p-5 flex flex-col gap-3 overflow-y-auto"><div className="text-sm font-bold">Operational Panel</div><div className="grid gap-3"><div className="rounded-2xl border border-border p-4"><div className="text-xs text-muted-foreground">Inputs Analyzed</div><div className="mt-1 text-sm font-medium">Footfall, seat telemetry, queue pressure, pickup traffic, schedule windows</div></div><div className="rounded-2xl border border-border p-4"><div className="text-xs text-muted-foreground">Decision Taken</div><div className="mt-1 text-sm font-medium">{details.summary}</div></div><div className="rounded-2xl border border-border p-4"><div className="text-xs text-muted-foreground">Realtime Update</div><div className="mt-1 flex items-center gap-2 text-emerald-600 font-semibold"><span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />Live synchronization active</div></div><div className="rounded-2xl border border-border p-4"><div className="text-xs text-muted-foreground">Animated Connections</div><div className="mt-3 h-24 rounded-2xl bg-gradient-to-br from-slate-100 to-violet-100 relative overflow-hidden"><div className="absolute inset-0 opacity-60" style={{ backgroundImage: "radial-gradient(circle at 20% 30%, rgba(99,102,241,0.55), transparent 10%), radial-gradient(circle at 50% 50%, rgba(236,72,153,0.55), transparent 10%), radial-gradient(circle at 80% 30%, rgba(34,197,94,0.55), transparent 10%)" }} /></div></div></div></div></div></div></motion.div></motion.div>;
+  return <motion.div layout className="fixed inset-0 z-[60] bg-black/55 backdrop-blur-md p-4 lg:p-8"><motion.div initial={{ opacity: 0, y: 24, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 24, scale: 0.96 }} transition={{ type: "spring", damping: 26, stiffness: 250 }} className="h-full rounded-[30px] border border-white/50 bg-white/90 shadow-2xl overflow-hidden"><div className="h-full p-5 lg:p-6 flex flex-col gap-5"><div className="flex items-center justify-between"><Button variant="outline" onClick={onBack}><ArrowLeft className="w-4 h-4" />Back to Operations Center</Button><StatusPill value={details.status} /></div><div className="grid lg:grid-cols-[1.2fr_0.8fr] gap-5 flex-1 min-h-0"><div className="rounded-[26px] border border-border bg-gradient-to-br from-white to-slate-50 p-5 overflow-hidden relative"><div className="absolute inset-0 opacity-50" style={{ backgroundImage: "radial-gradient(circle at 20% 20%, rgba(59,130,246,0.12), transparent 18%), radial-gradient(circle at 70% 30%, rgba(168,85,247,0.12), transparent 18%), radial-gradient(circle at 50% 70%, rgba(34,197,94,0.12), transparent 18%)" }} /><div className="relative"><div className="flex items-center gap-3"><div className="w-12 h-12 rounded-2xl bg-white border border-border flex items-center justify-center"><AgentGlyph keyName={agent} /></div><div><div className="text-xs uppercase tracking-[0.3em] text-muted-foreground">{details.status}</div><h3 className="text-2xl font-black">{details.title}</h3><p className="text-sm text-muted-foreground">{details.summary}</p></div></div><div className="mt-5 grid gap-3"><div className="rounded-2xl border border-border bg-white/80 p-4"><div className="text-sm font-semibold mb-2">Live Logs</div><div className="font-mono text-xs space-y-2 text-emerald-700">{(logs[agent] || []).map((line, i) => <div key={`${agent}-${i}`} className="flex gap-2"><span className="text-muted-foreground">{String(2120 + i).slice(1)}</span><span>{line}</span></div>)}</div></div><div className="grid md:grid-cols-2 gap-3"><div className="rounded-2xl border border-border bg-white/80 p-4"><div className="text-sm font-semibold mb-1">AI Reasoning</div><div className="text-sm text-muted-foreground">{details.body}</div></div><div className="rounded-2xl border border-border bg-white/80 p-4"><div className="text-sm font-semibold mb-1">Confidence</div><div className="text-3xl font-black text-violet-600">9{agent === "kitchen" ? 1 : agent === "pickup" ? 2 : agent === "crowd" ? 89 : agent === "seat" ? 94 : 87}%</div></div></div></div></div></div><div className="rounded-[26px] border border-border bg-white/80 p-5 flex flex-col gap-3 overflow-y-auto"><div className="text-sm font-bold">Operational Panel</div><div className="grid gap-3"><div className="rounded-2xl border border-border p-4"><div className="text-xs text-muted-foreground">Inputs Analyzed</div><div className="mt-1 text-sm font-medium">Footfall, seat telemetry, queue pressure, pickup traffic, schedule windows</div></div><div className="rounded-2xl border border-border p-4"><div className="text-xs text-muted-foreground">Decision Taken</div><div className="mt-1 text-sm font-medium">{details.summary}</div></div><div className="rounded-2xl border border-border p-4"><div className="text-xs text-muted-foreground">Realtime Update</div><div className="mt-1 flex items-center gap-2 text-emerald-600 font-semibold"><span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />Live synchronization active</div></div><div className="rounded-2xl border border-border p-4"><div className="text-xs text-muted-foreground">Animated Connections</div><div className="mt-3 h-24 rounded-2xl bg-gradient-to-br from-slate-100 to-violet-100 relative overflow-hidden"><div className="absolute inset-0 opacity-60" style={{ backgroundImage: "radial-gradient(circle at 20% 30%, rgba(99,102,241,0.55), transparent 10%), radial-gradient(circle at 50% 50%, rgba(236,72,153,0.55), transparent 10%), radial-gradient(circle at 80% 30%, rgba(34,197,94,0.55), transparent 10%)" }} /></div></div></div></div></div></div></motion.div></motion.div>;
+    
 }
 
 function OperationsHub() {
   const [openCenter, setOpenCenter] = useState(false);
   const [activeAgent, setActiveAgent] = useState<AgentKey | null>(null);
+  const [agentsState, setAgentsState] = useState<AgentState[]>(AGENTS);
+  const [logsState, setLogsState] = useState<Record<AgentKey, string[]>>(LOGS);
+  const esRef = useRef<EventSource | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const url = `/api/notifications/stream`;
+
+    function connect() {
+      const es = new EventSource(url);
+      esRef.current = es;
+
+      es.onmessage = (ev) => {
+        try {
+          const data = JSON.parse(ev.data);
+
+          if (data.type === "agents_snapshot" && active) {
+            if (Array.isArray(data.agents)) setAgentsState(data.agents);
+          }
+
+          if (data.type === "agent_update" && active) {
+            setAgentsState((prev) => prev.map((a) => a.key === data.key ? { ...a, ...(data.update || data) } : a));
+          }
+
+          if (data.type === "agent_log" && active) {
+            const agentKey = data.agent as AgentKey;
+            setLogsState((prev) => ({ ...prev, [agentKey]: [...(prev[agentKey] || []), data.message].slice(-40) }));
+          }
+        } catch {
+          // ignore malformed events
+        }
+      };
+
+      es.onerror = () => {
+        try { es.close(); } catch {}
+        esRef.current = null;
+        if (active) setTimeout(connect, 3000);
+      };
+    }
+
+    connect();
+    return () => { active = false; esRef.current?.close(); esRef.current = null; };
+  }, []);
+
   return <>
-    <AnimatePresence>{openCenter && <AIOperationsCenterModal open={openCenter} onClose={() => setOpenCenter(false)} onOpenAgent={(agent) => setActiveAgent(agent)} />}</AnimatePresence>
-    <AnimatePresence>{activeAgent && <AgentDetailPanel agent={activeAgent} onBack={() => setActiveAgent(null)} />}</AnimatePresence>
+    <AnimatePresence>{openCenter && <AIOperationsCenterModal open={openCenter} onClose={() => setOpenCenter(false)} onOpenAgent={(agent) => setActiveAgent(agent)} agents={agentsState} />}</AnimatePresence>
+    <AnimatePresence>{activeAgent && <AgentDetailPanel agent={activeAgent} onBack={() => setActiveAgent(null)} logs={logsState} />}</AnimatePresence>
     <button onClick={() => setOpenCenter(true)} className="w-full mb-4 rounded-[28px] border border-border bg-white/80 backdrop-blur-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow text-left">
       <div className="grid md:grid-cols-2 gap-0">
         <div className="p-4 lg:p-5 border-b md:border-b-0 md:border-r border-border/70">
@@ -259,54 +304,56 @@ function OperationsHub() {
 }
 
 function CartDrawer({ onClose }: { onClose: () => void }) {
-  const cart = useCart();
-  const [orderType, setOrderType] = useState<"dine_in" | "parcel">("dine_in");
-  const [showPayment, setShowPayment] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("upi");
-  const { getToken } = useAuth();
-  const { isGuest } = useGuestMode();
-  const addPoints = useGamification((s) => s.addPoints);
+      const cart = useCart();
+      const [orderType, setOrderType] = useState<"dine_in" | "parcel">("dine_in");
+      const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cod");
+      const [showPayment, setShowPayment] = useState(false);
+      const { getToken } = useAuth();
+      const { addPoints } = useGamification();
+      const { isGuest } = useGuestMode();
+      const total = cart.total();
 
-  async function placeOrderAfterPayment(method: PaymentMethod) {
-    const total = cart.total();
-    if (cart.items.length === 0) {
-      alert("Your cart is empty.");
-      return;
-    }
-    if (isGuest) {
-      const pts = Math.floor(total / 10);
-      addPoints(pts);
-      cart.clearCart();
-      onClose();
-      return;
-    }
-    try {
-      const token = await getToken();
-      if (!token) {
-        alert("Please sign in before placing an order.");
-        window.location.href = "/auth-gate";
-        return;
+      async function placeOrderAfterPayment(method: PaymentMethod) {
+        if (cart.items.length === 0) {
+          alert("Your cart is empty.");
+          return;
+        }
+        if (isGuest) {
+          const pts = Math.floor(total / 10);
+          addPoints(pts);
+          cart.clearCart();
+          onClose();
+          return;
+        }
+        try {
+          const token = await getToken();
+          if (!token) {
+            alert("Please sign in before placing an order.");
+            window.location.href = "/auth-gate";
+            return;
+          }
+          await apiFetch("/orders", {
+            method: "POST",
+            body: JSON.stringify({ items: cart.items.map((i) => ({ menuItemId: i.menuItemId, quantity: i.quantity })), type: orderType, paymentMethod: method }),
+          }, token);
+          const pts = Math.floor(total / 10);
+          addPoints(pts);
+          cart.clearCart();
+          onClose();
+          window.location.href = "/orders";
+        } catch (error) {
+          console.error("Place order failed:", error);
+          const message = error instanceof Error ? error.message : "Please try again.";
+          if (message.toLowerCase().includes("unauthorized")) {
+            alert("Please sign in before placing an order.");
+            window.location.href = "/auth-gate";
+            return;
+          }
+          alert(`Failed to place order. ${message}`);
+        }
       }
-      await apiFetch("/orders", {
-        method: "POST",
-        body: JSON.stringify({ items: cart.items.map((i) => ({ menuItemId: i.menuItemId, quantity: i.quantity })), type: orderType, paymentMethod: method }),
-      }, token);
-      const pts = Math.floor(total / 10);
-      addPoints(pts);
-      cart.clearCart();
-      onClose();
-      window.location.href = "/orders";
-    } catch (error) {
-      console.error("Place order failed:", error);
-      const message = error instanceof Error ? error.message : "Please try again.";
-      if (message.toLowerCase().includes("unauthorized")) {
-        alert("Please sign in before placing an order.");
-        window.location.href = "/auth-gate";
-        return;
-      }
-      alert(`Failed to place order. ${message}`);
-    }
-  }
+    
+
 
   return (
     <>

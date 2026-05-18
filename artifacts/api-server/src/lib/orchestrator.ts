@@ -28,11 +28,13 @@ async function processOrderTask(task: Task) {
     broadcastToAll("agent_log", { agent: "kitchen", message: `Order ${orderId} status set to cooking` });
     broadcastToAll("agents_snapshot", { agents: snapshotAgents() });
 
-    // Simulate real work by doing a small DB read and a CPU-bound computation
     const orders = await db.select().from(ordersTable).where(eq(ordersTable.id, orderId));
     const order = orders[0];
+    if (!order) throw new Error(`Order ${orderId} not found`);
+    broadcastToAll("order_update", { orderId, status: "cooking", userId: order.userId, userName: order.userName });
+
     // CPU-bound-ish: compute a hash-like number from item names
-    const work = order.items.map((it: any) => it.menuItemName).join("|");
+    const work = (order.items as any[]).map((it: any) => it.menuItemName).join("|");
     let acc = 0;
     for (let i = 0; i < work.length; i++) acc = (acc * 31 + work.charCodeAt(i)) % 100000;
 
@@ -43,6 +45,7 @@ async function processOrderTask(task: Task) {
     await db.update(ordersTable).set({ status: "packaging" }).where(eq(ordersTable.id, orderId));
     broadcastToAll("agent_log", { agent: "kitchen", message: `Order ${orderId} packaging` });
     broadcastToAll("agents_snapshot", { agents: snapshotAgents() });
+    broadcastToAll("order_update", { orderId, status: "packaging", userId: order.userId, userName: order.userName });
 
     await new Promise((r) => setTimeout(r, 700));
     await db.update(ordersTable).set({ status: "ready" }).where(eq(ordersTable.id, orderId));
@@ -50,7 +53,7 @@ async function processOrderTask(task: Task) {
     broadcastToAll("agents_snapshot", { agents: snapshotAgents() });
 
     // Notify frontends about order status
-    broadcastToAll("order_update", { orderId, status: "ready" });
+    broadcastToAll("order_update", { orderId, status: "ready", userId: order.userId, userName: order.userName });
   } catch (err) {
     logger.error({ err, task }, "processOrderTask failed");
     // retry logic

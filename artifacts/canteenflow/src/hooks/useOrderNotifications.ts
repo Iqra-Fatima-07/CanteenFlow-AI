@@ -41,10 +41,9 @@ export function useOrderNotifications() {
     let active = true;
 
     async function connect() {
-      const token = await getToken();
       if (!active) return;
 
-      const url = `/api/notifications/stream${token ? `?token=${encodeURIComponent(token)}` : ""}`;
+      const url = `/api/notifications/stream`;
 
       const es = new EventSource(url);
       esRef.current = es;
