@@ -3,7 +3,6 @@ import { getAuth } from "@clerk/express";
 import { eq, desc, and, inArray } from "drizzle-orm";
 import { db, ordersTable, menuItemsTable, usersTable } from "@workspace/db";
 import { broadcastOrderUpdate } from "../lib/sse";
-import { enqueueTask } from "../lib/orchestrator";
 import {
   ListOrdersResponse,
   CreateOrderBody,
@@ -17,6 +16,15 @@ import {
   ListOrdersQueryParams,
 } from "@workspace/api-zod";
 import { getOrCreateUser } from "./users";
+
+const STATUS_TRANSITIONS: Record<string, string | null> = {
+  confirmed: "cooking",
+  cooking: "packaging",
+  packaging: "ready",
+  ready: "collected",
+  collected: null,
+  cancelled: null,
+};
 
 const router: IRouter = Router();
 
@@ -138,14 +146,8 @@ router.post("/orders", async (req, res): Promise<void> => {
     userName: order.userName,
   });
 
-  // Enqueue processing task for orchestrator (kitchen, seat allocation, pickup)
-  try {
-    enqueueTask("process_order", { orderId: order.id });
-  } catch (err) {
-    // non-fatal
-    console.warn("Failed to enqueue orchestrator task", err);
-  }
-
+  // Keep order status progression manual for kitchen staff.
+  // Automatic background processing was causing orders to skip the cooking/packaging stages.
   res.status(201).json(GetOrderResponse.parse(order));
 });
 
@@ -179,6 +181,20 @@ router.patch("/orders/:id/status", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+
+  const [currentOrder] = await db.select().from(ordersTable).where(eq(ordersTable.id, params.data.id));
+  if (!currentOrder) {
+    res.status(404).json({ error: "Order not found" });
+    return;
+  }
+
+  const currentStatus = currentOrder.status;
+  const nextStatus = STATUS_TRANSITIONS[currentStatus] ?? null;
+  if (parsed.data.status !== currentStatus && parsed.data.status !== nextStatus) {
+    res.status(400).json({ error: `Invalid status transition from ${currentStatus} to ${parsed.data.status}` });
+    return;
+  }
+
   const updates: Record<string, unknown> = { status: parsed.data.status };
   if (parsed.data.status === "collected") {
     updates.paymentStatus = "paid";

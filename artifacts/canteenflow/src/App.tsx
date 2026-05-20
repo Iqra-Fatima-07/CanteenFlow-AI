@@ -1,6 +1,6 @@
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ClerkProvider, useAuth } from "@clerk/react";
+import { ClerkProvider, useAuth, useUser } from "@clerk/react";
 import { useEffect } from "react";
 import { setAuthTokenGetter } from "@workspace/api-client-react";
 import { Toaster } from "@/components/ui/toaster";
@@ -44,6 +44,23 @@ function NotificationWatcher() {
   return null;
 }
 
+function ClerkRedirector() {
+  const [location, navigate] = useLocation();
+  const { user } = useUser();
+
+  useEffect(() => {
+    if (user && location === "/") {
+      const target = "/select-role";
+      navigate(target);
+      if (window.location.pathname === "/") {
+        window.location.assign(target);
+      }
+    }
+  }, [user, location, navigate]);
+
+  return null;
+}
+
 function FlowieAndGamification() {
   const [location] = useLocation();
   const showFlowie = location !== "/" && location !== "/select-role" && location !== "/auth-gate";
@@ -60,6 +77,7 @@ function AppRouter() {
     <>
       <AuthTokenSetter />
       <NotificationWatcher />
+      <ClerkRedirector />
       <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
         <Switch>
           <Route path="/" component={LandingPage} />
@@ -78,6 +96,11 @@ function AppRouter() {
   );
 }
 
+function wouterNavigate(to: string) {
+  window.history.pushState({}, "", to);
+  window.dispatchEvent(new PopStateEvent("popstate"));
+}
+
 function App() {
   if (!PUBLISHABLE_KEY) {
     return (
@@ -92,7 +115,12 @@ function App() {
   }
 
   return (
-    <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
+    <ClerkProvider
+      publishableKey={PUBLISHABLE_KEY}
+      afterSignInUrl="/select-role"
+      afterSignOutUrl="/"
+      navigate={wouterNavigate}
+    >
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <AppRouter />

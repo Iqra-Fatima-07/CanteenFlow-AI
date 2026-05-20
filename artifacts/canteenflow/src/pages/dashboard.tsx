@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@clerk/react";
 import { useGetCanteenDashboard, useListActiveOrders, useUpdateOrderStatus } from "@workspace/api-client-react";
@@ -45,22 +45,26 @@ function StatCard({ icon: Icon, label, value, sub, color }: any) {
   );
 }
 
-function IdCardModal({ orderId, orderName, onClose, token }: { orderId: number; orderName: string; onClose: () => void; token: string | null }) {
+function IdCardModal({ orderId, orderName, onClose }: { orderId: number; orderName: string; onClose: () => void }) {
   const [loading, setLoading] = useState(true);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useState(() => {
-    apiFetch(`/orders/${orderId}/id-card`, {}, token)
-      .then((data) => {
-        setImageUrl(data?.imageUrl ?? null);
-        setLoading(false);
-      })
-      .catch(() => {
-        setError("Could not load ID card");
-        setLoading(false);
-      });
-  });
+  useEffect(() => {
+    let active = true;
+    apiFetch(`/orders/${orderId}/id-card`).then((data) => {
+      if (!active) return;
+      setImageUrl(data?.imageUrl ?? null);
+      setLoading(false);
+    }).catch(() => {
+      if (!active) return;
+      setError("Could not load ID card");
+      setLoading(false);
+    });
+    return () => {
+      active = false;
+    };
+  }, [orderId]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
@@ -99,7 +103,7 @@ function IdCardModal({ orderId, orderName, onClose, token }: { orderId: number; 
   );
 }
 
-function OrderCard({ order, onAdvance, token }: { order: any; onAdvance: (id: number, status: string) => void; token: string | null }) {
+function OrderCard({ order, onAdvance }: { order: any; onAdvance: (id: number, status: string) => void }) {
   const items = Array.isArray(order.items) ? order.items : [];
   const nextStatus = STATUS_NEXT[order.status];
   const statusClass = STATUS_COLORS[order.status] || "bg-gray-100 text-gray-600";
@@ -117,7 +121,7 @@ function OrderCard({ order, onAdvance, token }: { order: any; onAdvance: (id: nu
     setOtpSending(true);
     setOtpError(null);
     try {
-      await apiFetch(`/orders/${order.id}/otp/send`, { method: "POST" }, token);
+      await apiFetch(`/orders/${order.id}/otp/send`, { method: "POST" });
       setOtpSent(true);
     } catch (e: any) {
       setOtpError(e.message || "Failed to send OTP");
@@ -134,7 +138,7 @@ function OrderCard({ order, onAdvance, token }: { order: any; onAdvance: (id: nu
       const res = await apiFetch(`/orders/${order.id}/otp/verify`, {
         method: "POST",
         body: JSON.stringify({ otp: otpInput.trim() }),
-      }, token);
+      });
       if (res?.valid) {
         setOtpVerified(true);
         setOtpError(null);
@@ -149,7 +153,7 @@ function OrderCard({ order, onAdvance, token }: { order: any; onAdvance: (id: nu
   return (
     <>
       {showIdCard && (
-        <IdCardModal orderId={order.id} orderName={order.userName} onClose={() => setShowIdCard(false)} token={token} />
+        <IdCardModal orderId={order.id} orderName={order.userName} onClose={() => setShowIdCard(false)} />
       )}
       <motion.div layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-card rounded-2xl border border-border p-4 shadow-sm">
         <div className="flex items-start justify-between mb-3">
@@ -257,15 +261,10 @@ function OrderCard({ order, onAdvance, token }: { order: any; onAdvance: (id: nu
 }
 
 export default function DashboardPage() {
-  const { isSignedIn, getToken } = useAuth();
+  const { isSignedIn } = useAuth();
   const { appUser, loading: userLoading } = useCurrentUser();
   const qc = useQueryClient();
   const [filter, setFilter] = useState<string>("all");
-  const [token, setToken] = useState<string | null>(null);
-
-  useState(() => {
-    getToken().then((t) => setToken(t));
-  });
 
   const { data: dashboard, isLoading: dashLoading } = useGetCanteenDashboard({ query: { enabled: isSignedIn } } as any);
   const { data: activeOrders = [], isLoading: ordersLoading } = useListActiveOrders({ query: { enabled: isSignedIn } } as any);
@@ -345,7 +344,7 @@ export default function DashboardPage() {
               <div className="grid sm:grid-cols-2 gap-3">
                 <AnimatePresence>
                   {filteredOrders.map((order: any) => (
-                    <OrderCard key={order.id} order={order} onAdvance={handleAdvance} token={token} />
+                    <OrderCard key={order.id} order={order} onAdvance={handleAdvance} />
                   ))}
                 </AnimatePresence>
               </div>

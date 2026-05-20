@@ -1,7 +1,7 @@
 import { motion, useScroll, useTransform } from "framer-motion";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
-import { SignInButton, SignUpButton, useAuth } from "@clerk/react";
+import { SignInButton, SignUpButton, useAuth, useUser } from "@clerk/react";
 import {
   Utensils, Zap, Users, BarChart3, MapPin, Clock, Star, ArrowRight, ChefHat, Shield, GraduationCap
 } from "lucide-react";
@@ -119,9 +119,16 @@ function FoodStrip() {
 
 export default function LandingPage() {
   const { isSignedIn } = useAuth();
+  const { user } = useUser();
   const [, navigate] = useLocation();
   const heroRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
+
+  useEffect(() => {
+    if ((isSignedIn || user) && window.location.pathname === "/") {
+      navigate("/select-role");
+    }
+  }, [isSignedIn, user, navigate]);
   const heroY = useTransform(scrollYProgress, [0, 1], ["0%", "25%"]);
   const heroOpacity = useTransform(scrollYProgress, [0, 0.85], [1, 0]);
 
